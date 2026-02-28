@@ -1,4 +1,4 @@
-,plot,biome,total_richness,native_richness,non_native_richness,relative_non_native_native_proportion,state,latitude,longitude
+ID,plot,biome,total_richness,native_richness,non_native_richness,relative_non_native_native_proportion,state,latitude,longitude
 1,NSABHC0001,Desert shrublands,66,63,3,0.045454545,NSW,-31.89335056,141.4337544
 2,NSABHC0002,Desert shrublands,75,68,7,0.093333333,NSW,-31.92702694,141.4329608
 3,NSABHC0003,Desert shrublands,69,61,8,0.115942029,NSW,-31.82872083,141.4340336
@@ -707,3 +707,4 @@
 706,WAGCOO0001,Mediterranean woodlands,47,47,0,0,WA,-30.43612778,120.6429056
 707,WAGCOO0002,Mediterranean woodlands,50,50,0,0,WA,-30.35099167,120.6426917
 708,WAGCOO0004,Mediterranean woodlands,46,41,5,0.108695652,WA,-30.46525833,120.8060833
+
