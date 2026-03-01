@@ -35,7 +35,7 @@ library(MASS)      # for more advanced analyses
 # 3. Practice introducing the data recorded from your cork board 
 # =====================================================
 #Data entry, the data that we can clearly record
-cork_boar_data <- data.frame(
+cork_board_data <- data.frame(
   biome = c("Desert shrublands", "Mediterranean woodlands"),
   plot = c("1", "2"),
   total_richness = c("#count all different pins in plot 1", "#count all different pins in plot 2"),
@@ -43,7 +43,7 @@ cork_boar_data <- data.frame(
   non_native_richness = c("#different shapes of pink pins in plot 1", "#different shapes of pink pins in plot 2")
 )
 
-cork_boar_data <- data.frame(
+cork_board_data <- data.frame(
   biome = c("Desert shrublands", "Mediterranean woodlands"),
   plot = c("1", "2"),
   total_richness = c(7, 14),
@@ -54,10 +54,10 @@ cork_boar_data <- data.frame(
 #We could do a lot more... cover, abundance... we could organise it per species or the aggregated value in the plot
 
 #If you struggle to enter the data in R, that is ok, simply enter it in excel, save in .csv format and read it as follows:
-cork_boar_data <- read.csv("cork_boar_data.csv")
+cork_board_data <- read.csv("cork_boar_data.csv")
 
 #Now let's create a new variable that we are interested in: the relative proportion of non-native species in the plot
-cork_boar_data$relative_proportion_non_native = cork_boar_data$non_native_richness / cork_boar_data$total_richness
+cork_board_data$relative_proportion_non_native = cork_boar_data$non_native_richness / cork_boar_data$total_richness
 View(cork_boar_data)
 
 # =====================================================
