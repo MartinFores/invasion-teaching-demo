@@ -1,0 +1,307 @@
+# =====================================================
+#Practical workshop. Students 3rd year Ecology
+#Author: Irene Martin-Fores
+#Goal: Hypothesis testing with real data from TERN Ausplots
+# =====================================================
+# =====================================================
+# 1. Setup: install and load required packages
+# =====================================================
+
+required_packages <- c("tibble", "readr", "dplyr", "tidyr", "ggplot2", "car", "broom", "emmeans", "MASS")
+
+new_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
+
+if (length(new_packages)) {
+  install.packages(new_packages)
+}
+
+# =====================================================
+# 2. Load libraries
+# =====================================================
+#lapply(required_packages, library, character.only = TRUE) #faster way to do it
+
+#if not feeling confident, you can load the libraries one by one
+library(tibble)
+library(readr)     # for fast data import
+library(dplyr)     # for data processing
+library(tidyr)     # for reshaping data
+library(ggplot2)   # for visualisation and plot creation
+library(car)       # for regression diagnostics
+library(broom)     # to tidy model outputs (optional)
+library(emmeans)   # for slope estimation for interactions
+library(MASS)      # for more advanced analyses 
+
+# =====================================================
+# 3. Practice introducing the data recorded from your cork board 
+# =====================================================
+#Data entry, the data that we can clearly record
+cork_boar_data <- data.frame(
+  biome = c("Desert shrublands", "Mediterranean woodlands"),
+  plot = c("1", "2"),
+  total_richness = c("#count all different pins in plot 1", "#count all different pins in plot 2"),
+  native_richness = c("#different shapes of green&yellow pins in plot 1", "#different shapes of green&yellow pins in plot 2"),
+  non_native_richness = c("#different shapes of pink pins in plot 1", "#different shapes of pink pins in plot 2")
+)
+
+cork_boar_data <- data.frame(
+  biome = c("Desert shrublands", "Mediterranean woodlands"),
+  plot = c("1", "2"),
+  total_richness = c(7, 14),
+  native_richness = c(5, 8),
+  non_native_richness = c(2, 6)
+)
+
+#We could do a lot more... cover, abundance... we could organise it per species or the aggregated value in the plot
+
+#If you struggle to enter the data in R, that is ok, simply enter it in excel, save in .csv format and read it as follows:
+cork_boar_data <- read.csv("cork_boar_data.csv")
+
+#Now let's create a new variable that we are interested in: the relative proportion of non-native species in the plot
+cork_boar_data$relative_proportion_non_native = cork_boar_data$non_native_richness / cork_boar_data$total_richness
+View(cork_boar_data)
+
+# =====================================================
+# 4. Load dataset that I have already prepared for you 
+# =====================================================
+
+dataset <- read.csv("https://raw.githubusercontent.com/MartinFores/invasion-teaching-demo/refs/heads/main/df_final.csv")
+
+
+View(dataset) #optional
+
+# ===========================
+# 5. Data analyses for Aim 1 
+# ===========================
+# =======================================================================
+# 5.1 Let's explore the data for aim 1 -> invasion varies between biomes 
+# =======================================================================
+# First, quick exploration of our data:
+# What do the data look like?
+head(dataset)
+
+# How many plots do we have per biome?
+table(dataset$biome)
+
+# Let's explore our dataframe and variables
+str(dataset)
+
+#Biome is currently stored as a character. But it represents categories, we should convert it to factor.
+dataset$biome <- as.factor(dataset$biome)
+
+#Let's summarise first before testing anything, it is a good practice!
+#Compute mean non_native richness per biome
+dataset %>%
+  group_by(biome) %>%                                          #group by biome as we want the results between biomes
+  summarise(
+    mean_non_native = mean(non_native_richness, na.rm = TRUE), #mean
+    sd_non_native = sd(non_native_richness, na.rm = TRUE),     #standard deviation
+    n = n()
+  )
+
+#Let's visualise it
+ggplot(dataset, aes(x = biome, y = non_native_richness, fill = biome)) + #fill = biome is to colour per biomes
+  geom_boxplot(alpha = 0.6) +
+  geom_jitter(width = 0.1, alpha = 0.5) +
+  theme_classic() +
+  labs(
+    y = "Non-native species richness",
+    x = "Biome"
+  ) +
+  theme(legend.position = "none")
+
+#Let's start thinking now what we can already see from all the info that we got:
+     #Do distributions look different?
+     #Which biome seems more invaded?
+     #Are sample sizes similar?
+     #Do we have any extreme outliers?
+
+# =====================================================================
+# 5.2 Choice of analyses for Aim 1 - Compare invasion between 2 biomes
+# =====================================================================
+
+#Simple Student's t-test:
+Students_t_test <- t.test(non_native_richness ~ biome, data = dataset, var.equal = TRUE)
+Students_t_test #p-value < 0.05 which means that there are significant differences in non-native richness between biomes
+
+#However... Student's t-test assumes independent observation, normal distribution and equal variances
+#Therefore we need to check if our data meet these assumptions before continuing
+
+#Homogeneity of variances (homoscedasticity)
+#We can check with Levene's test. If p-value < 0.05 -> our variances are not similar
+leveneTest(non_native_richness ~ biome, data = dataset)
+
+#As variances are not homogeneous, we have to select a different test that does not assume homoscedasticity
+#Test between two groups without requiring homogenous variances: Welch t-test
+t.test(non_native_richness ~ biome, data = dataset)
+
+#Normality
+#We can check with Shapiro Test. If p-value < 0.05 -> our distribution isn't normal
+by(dataset$non_native_richness, dataset$biome, shapiro.test)
+
+#If we want to double check, we can plot it. If the dots do not follow the line, the distribution is skewed
+ggplot(dataset, aes(sample = non_native_richness)) +
+  stat_qq() +
+  stat_qq_line() +
+  facet_wrap(~ biome) +
+  theme_classic()
+
+#Ok, not normal, so Welch t-test is not ideal... although with the large samples we have it would still be ok
+
+# ============================================
+# 5.3 Options to continue with Hypothesis 1
+# ============================================
+
+#Please, depending on your interest or struggle with statistics, feel free to choose either a simple path (5.3.1) or a more exhaustive one (5.3.2)
+#If you struggle but you are still interested in learning General Linear Models (GLMs), come to see me!
+
+# ============================================
+# 5.3.1 Simplest option - Non-parametric
+# ============================================
+
+#We can use the Wilcoxon rank-sum test (also called Mann–Whitney) when samples aren't normal or have homogeneous variances
+#Wilcoxon does not explicitly test difference in means; it tests difference in rank distributions.
+wilcox.test(non_native_richness ~ biome, data = dataset) 
+
+# ============================================
+# 5.3.2 More complex but more correct option 
+# ============================================
+
+#Use a general linear model (GLM) with Poisson distribution, because our response variable is species counts
+glm_poisson <- glm(non_native_richness ~ biome, family = poisson(link = "log"), data = dataset)
+summary(glm_poisson)
+
+#Convert estimated values back for interpretation
+exp(0.32593) #approx 1.4 -> number of non-native species in Desert shrublands
+exp(0.32593) #approx 3.3 -> times the number of species in Meditterranean woodlands
+
+#However, we need to make sure there is not overdispersion, otherwise Poisson is not the right distribution for our data
+dispersion <- sum(residuals(glm_poisson, type = "pearson")^2) / df.residual(glm_poisson)
+dispersion
+#If dispersion = 1 (approx), then it is ok to continue
+#If dispersion > 1, then we need to fit to a negative binomial instead
+
+#Substantial dispersion in our data (Variance > Mean; dispersion = 5.8), therefore it is more correct to fit a negative binomial
+glm_nb <- glm.nb(non_native_richness ~ biome, data = dataset)
+summary(glm_nb)
+#Results are similar but it is statistically the most appropriate and reliable model
+
+# ===========================
+# 6. Data analyses for Aim 2 
+# ===========================
+# ========================================================================================
+# 6.1 Options to continue with Hypothesis 2
+# ========================================================================================
+
+#Once again, I am giving the option that you follow either of these levels of increasing complexity
+#Please, depending on your interest or struggle with statistics, feel free to choose either a simple path (6.1.1) or a more exhaustive one (6.1.2)
+#If you struggle but you are still interested in learning General Linear Models (GLMs), come to see me!
+#One way to explore the relationship is a simple correlation. A more biologically appropriate way is a GLM that accounts for count data.
+
+# ============================================
+# 6.1.1 Simplest option - Correlation 
+# ============================================
+
+#Let's explore the data for Aim 2 -> Does non-native richness affect native richness? 
+ggplot(dataset, aes(non_native_richness, native_richness)) +
+  geom_point(alpha = 0.4) +
+  theme_classic()
+
+#Let's think:
+#Does the slope look positive or negative?
+
+ggplot(dataset, aes(non_native_richness, native_richness)) +
+  geom_point(alpha = 0.35, colour = "darkgreen") +
+  geom_smooth(method = "lm", se = TRUE, colour = "black") +
+  theme_classic(base_size = 14) +
+  labs(
+    x = "Non-native richness",
+    y = "Native richness"
+  )
+
+#Pearson correlation
+cor.test(dataset$non_native_richness, dataset$native_richness, method = "pearson")
+
+#As our data weren't normal, it is better to use Spearman that is based on ranks
+cor.test(dataset$non_native_richness, dataset$native_richness, method = "spearman")
+
+#There is a significant trend of more native species in the plots with more non-native species 
+#We can do it per biome
+by(dataset, dataset$biome, function(x)
+  cor.test(x$non_native_richness,
+           x$native_richness,
+           method = "spearman"))
+#In both biomes the relationship is positive and significant
+
+#What does this mean?
+#Why is this happening?
+#Correlation is NOT causation
+
+# ============================================
+# 6.1.2 More complex but more correct option 
+# ============================================
+
+#Let's visualise 
+ggplot(dataset, aes(non_native_richness, native_richness, colour = biome)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_classic() +
+  labs(
+    x = "Non-native richness",
+    y = "Native richness"
+  )
+
+#Let's think:
+#Does the slope look positive or negative?
+#Does it look similar across biomes?
+#Does spread increase with richness?
+
+#Let's start step by step again:
+#Linear models
+lm_model <- lm(native_richness ~ non_native_richness, data = dataset)
+summary(lm_model)
+#Signigicant but, is it appropriate? 
+#No, because native richness is also count so we should try Poisson
+
+#GLM fitted to Poisson
+glm_poisson2 <- glm(native_richness ~ non_native_richness,family = poisson(link = "log"), data = dataset)
+summary(glm_poisson2)
+exp(coef(glm_poisson2)) 
+#Intercept --> When non-native richness = 0, the expected native richness is about 38.6 (39) species per plot.
+#Non-native richness --> Each additional non-native species is associated with a 2.8% increase in expected native richness.
+                        #So for every extra non-native species, native richness increases approx. 3%
+
+#Check overdispersion again to ensure Poisson is OK for this analysis
+dispersion2 <- sum(residuals(glm_poisson2, type = "pearson")^2) / df.residual(glm_poisson2)
+dispersion2 
+# Again, we have considerable overdispersion, so we should move to negative binomial
+
+#GLM fitted to negative binomial
+glm_nb2 <- glm.nb(native_richness ~ non_native_richness, data = dataset)
+summary(glm_nb2)
+exp(coef(glm_nb2))
+#Similar result
+#Intercept --> When non-native richness = 0, the expected native richness is about 39 species per plot.
+#Non-native richness --> Each additional non-native species is associated with a 3.2% increase in expected native richness.
+#So for every extra non-native species, native richness increases approx. 3%
+
+#We should add biome as an interaction, to see if slopes differ between biomes
+glm_nb_interaction <- glm.nb(native_richness ~ non_native_richness * biome, data = dataset)
+summary(glm_nb_interaction)
+
+#Interpretation
+#Intercept refers to the first biome in alphabetical order (i.e. Desert shrublands), to interpret it we need to convert back
+exp(3.592270)
+# exp(3.592270) = 36, which means that the baseline of native species per plot in Desert shrublands when non-native species = 0, is 36 native species
+
+#then we move to the slope of the coefficient non_native_richness
+exp(0.058619)
+#exp(0.058619) = 1.06, which means that, in Desert shrublands, for each non-native species, there is an association in increase of 6% for native species
+
+#then we move to the slope of the coefficient biomeMediterranean woodlands
+exp(0.137892)
+#exp(0.137892) = 1.15, which means that, in Mediterranean shrublands, when non-native richness = 0, plots have about 15% more native species than plots in Desert shrublands 
+
+#finally, we move to the interaction slope, that is -0.036980, so slower than the slope for the effecto of non_native_richness in Desert shrublands
+#we should sustract that value from the one in Deserts: value to interpret: 0.058619-0.036980 = 0.0216
+exp(0.0216)
+#exp(0.058619) = 1.022, which means that, in Mediterranean woodlands, for each non-native species, there is an association in increase of 2.2% for native species
