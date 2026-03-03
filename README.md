@@ -1,6 +1,8 @@
 # invasion-teaching-demo
 Dataset and script for invasion teaching demo.<br>
-Please load the dataset using the following: <br>
+In this module we are going to be working with real data collected all across Australia!<br>
+Please load the dataset in R studio using the following: <br>
+dataset <- read.csv("https://raw.githubusercontent.com/MartinFores/invasion-teaching-demo/refs/heads/main/df_final.csv")<br>
 <img width="1493" height="168" alt="image" src="https://github.com/user-attachments/assets/701639a7-0d88-48d3-9fcf-90c2dd07336f" /> <br>
 
 Feel free to try to code the different analyses you think of yourself, or alternatively follow the prompts I have provided by copying and pasting the code that I have prepared.<br>
